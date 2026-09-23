@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.env
+server/data/*.sqlite
+server/data/*.sqlite-journal
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/release/
+*.apk
+*.log
+.DS_Store

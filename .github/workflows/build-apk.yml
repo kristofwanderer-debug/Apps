@@ -1,0 +1,96 @@
+name: Build Remote Viewing Monitor APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "remote-viewing-monitor/**"
+      - ".github/workflows/build-apk.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+env:
+  # Set this in: Settings -> Secrets and variables -> Actions -> Variables ->
+  # "New repository variable", name API_BASE_URL, value = your deployed
+  # backend's https URL (e.g. https://rv-monitor-api.onrender.com).
+  # The packaged app has no localhost of its own, so this gets baked into
+  # the web build at compile time.
+  VITE_API_BASE_URL: ${{ vars.API_BASE_URL }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: remote-viewing-monitor
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Warn if API_BASE_URL isn't set yet
+        if: ${{ env.VITE_API_BASE_URL == '' }}
+        run: echo "::warning::API_BASE_URL repository variable is not set - the app will be built pointing at a relative /api path, which will not work once installed on a phone. Set it in Settings > Secrets and variables > Actions > Variables."
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install client dependencies
+        working-directory: remote-viewing-monitor/client
+        run: npm install
+
+      - name: Build web app
+        working-directory: remote-viewing-monitor/client
+        run: npm run build
+
+      - name: Add Android platform
+        working-directory: remote-viewing-monitor/client
+        run: npx cap add android
+
+      - name: Sync web assets + plugins into Android project
+        working-directory: remote-viewing-monitor/client
+        run: npx cap sync android
+
+      - name: Make gradlew executable
+        working-directory: remote-viewing-monitor/client/android
+        run: chmod +x gradlew
+
+      - name: Build debug APK
+        working-directory: remote-viewing-monitor/client/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Locate APK
+        id: apk
+        working-directory: remote-viewing-monitor/client/android
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rv-monitor-debug-apk
+          path: remote-viewing-monitor/client/android/${{ steps.apk.outputs.path }}
+          retention-days: 30
+
+      - name: Publish/refresh a stable "latest APK" release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          replacesArtifacts: true
+          tag: latest-apk
+          name: "Latest build (debug APK)"
+          body: "Auto-built from the latest push to main. This is a debug-signed APK: on your phone, allow installs from unknown sources / Chrome to install it."
+          artifacts: remote-viewing-monitor/client/android/${{ steps.apk.outputs.path }}
+          token: ${{ secrets.GITHUB_TOKEN }}

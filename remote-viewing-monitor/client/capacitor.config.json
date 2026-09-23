@@ -1,0 +1,14 @@
+{
+  "appId": "com.rvmonitor.app",
+  "appName": "Remote Viewing Monitor",
+  "webDir": "dist",
+  "backgroundColor": "#0b0d12",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SpeechRecognition": {
+      "permissions": ["android.permission.RECORD_AUDIO"]
+    }
+  }
+}

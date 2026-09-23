@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: rv-monitor-api
+    runtime: node
+    plan: free
+    rootDir: remote-viewing-monitor/server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false # set manually in the Render dashboard - never commit real keys
+      - key: UNSPLASH_ACCESS_KEY
+        sync: false # optional fallback image source
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5
